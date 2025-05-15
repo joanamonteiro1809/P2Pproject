@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
   //  token = IERC20(tokenAddress);
 //}
 
-contract SplitwiseContract {
+contract SplitwiseContract{
     struct Expense {
         string description;
         uint256 amount;
