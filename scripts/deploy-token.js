@@ -1,14 +1,12 @@
+const hre = require("hardhat");
+
+  // deploy-token.js
 async function main() {
-  const [deployer] = await ethers.getSigners();
-
-  console.log("Deploying SplitwiseToken with account:", deployer.address);
-
-  const SplitwiseToken = await ethers.getContractFactory("SplitwiseToken");
+  const SplitwiseToken = await hre.ethers.getContractFactory("SplitwiseToken");
   const token = await SplitwiseToken.deploy();
 
-  await token.waitForDeployment();
-
-  console.log("SplitwiseToken deployed to:", await token.getAddress());
+  await token.deployed();
+  console.log("SplitwiseToken deployed to:", token.address);
 }
 
 main().catch((error) => {

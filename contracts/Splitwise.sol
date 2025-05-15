@@ -3,14 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
-//IERC20 public token;
-
-//constructor(address tokenAddress) {
-  //  token = IERC20(tokenAddress);
-//}
-
-contract SplitwiseContract{
+contract Splitwise{
     struct Expense {
         string description;
         uint256 amount;
@@ -63,6 +56,7 @@ contract SplitwiseContract{
         string calldata name,
         address[] calldata initialMembers
     ) external returns (uint256) {
+        require(initialMembers.length >= 2, "Group must have at least 2 members"); 
         uint256 groupId = groupIdCounter++;
         Group storage group = groups[groupId];
         group.name = name;
@@ -122,6 +116,7 @@ contract SplitwiseContract{
         uint256 amount,
         address[] calldata involved
     ) external onlyMember(groupId) {
+        require(amount > 0, "Amount must be greater than zero");
         Group storage group = groups[groupId];
         require(group.exists, "Group does not exist");
         require(involved.length > 0, "No involved members");
