@@ -3,13 +3,12 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-IERC20 public token;
 
-    constructor(address tokenAddress) {
-        token = IERC20(tokenAddress);
-    }
+//IERC20 public token;
 
-
+//constructor(address tokenAddress) {
+  //  token = IERC20(tokenAddress);
+//}
 
 contract SplitwiseContract {
     struct Expense {
@@ -34,23 +33,36 @@ contract SplitwiseContract {
     uint256 public groupIdCounter;
     mapping(uint256 => Group) private groups;
 
-    // IERC20 public token;
+    IERC20 public token;
 
     event GroupCreated(uint256 groupId, string name, address creator);
     event MemberJoined(uint256 groupId, address member);
-    event ExpenseAdded(uint256 groupId, string description, uint256 amount, address paidBy);
-    //event DebtSettled(uint256 groupId, address from, address to, uint256 amount);
-    
-    /*constructor(address tokenAddress) {
+    event ExpenseAdded(
+        uint256 groupId,
+        string description,
+        uint256 amount,
+        address paidBy
+    );
+    event DebtSettled(
+        uint256 groupId,
+        address from,
+        address to,
+        uint256 amount
+    );
+
+    constructor(address tokenAddress) {
         token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
-    }*/
-    
+    }
+
     modifier onlyMember(uint256 groupId) {
         require(groups[groupId].isMember[msg.sender], "Not a group member");
         _;
     }
 
-    function createGroup(string calldata name, address[] calldata initialMembers) external returns (uint256) {
+    function createGroup(
+        string calldata name,
+        address[] calldata initialMembers
+    ) external returns (uint256) {
         uint256 groupId = groupIdCounter++;
         Group storage group = groups[groupId];
         group.name = name;
@@ -85,11 +97,16 @@ contract SplitwiseContract {
         emit MemberJoined(groupId, msg.sender);
     }
 
-    function getGroupMembers(uint256 groupId) external view returns (address[] memory) {
+    function getGroupMembers(
+        uint256 groupId
+    ) external view returns (address[] memory) {
         return groups[groupId].members;
     }
 
-    function isGroupMember(uint256 groupId, address user) internal view returns (bool) {
+    function isGroupMember(
+        uint256 groupId,
+        address user
+    ) internal view returns (bool) {
         Group storage group = groups[groupId];
         for (uint256 i = 0; i < group.members.length; i++) {
             if (group.members[i] == user) {
@@ -99,12 +116,11 @@ contract SplitwiseContract {
         return false;
     }
 
-    
     function addExpense(
-    uint256 groupId,
-    string calldata description,
-    uint256 amount,
-    address[] calldata involved
+        uint256 groupId,
+        string calldata description,
+        uint256 amount,
+        address[] calldata involved
     ) external onlyMember(groupId) {
         Group storage group = groups[groupId];
         require(group.exists, "Group does not exist");
@@ -118,10 +134,10 @@ contract SplitwiseContract {
 
             if (member != msg.sender) {
                 // Member owes msg.sender
-                group.debts[member][msg.sender] += share;
+                group.debts[member][msg.sender] += int256(share);
             }
         }
-        
+
         Expense memory newExpense = Expense({
             description: description,
             amount: amount,
@@ -130,102 +146,136 @@ contract SplitwiseContract {
             timestamp: block.timestamp
         });
 
-        group.expenses.push(newExpense);*/
+        group.expenses.push(newExpense);
 
-        emit ExpenseAdded(groupId, msg.sender, amount, description);
+        emit ExpenseAdded(groupId, description, amount, msg.sender);
     }
-
 
     function simplifyDebts(uint groupId) public onlyMember(groupId) {
-        Group storage group = groups[groupId];
-        uint n = group.members.length;
+    Group storage group = groups[groupId];
+    uint n = group.members.length;
 
-        // Step 1: Compute balances
-        mapping(address => int) memory balances;
-        for (uint i = 0; i < n; i++) {
-            address a = group.members[i];
-            for (uint j = 0; j < n; j++) {
-                address b = group.members[j];
-                balances[a] -= int(group.debts[a][b]);
-                balances[a] += int(group.debts[b][a]);
-            }
-        }
+    // Step 1: Compute balances
+    int256[] memory balances = new int256[](n);
 
-        // Step 2: Clear old debts
-        for (uint i = 0; i < n; i++) {
-            for (uint j = 0; j < n; j++) {
-                group.debts[group.members[i]][group.members[j]] = 0;
-            }
-        }
-
-        // Step 3: Separate creditors and debtors
-        address[] memory creditors = new address[](n);
-        address[] memory debtors = new address[](n);
-        uint credCount = 0;
-        uint debtCount = 0;
-
-        for (uint i = 0; i < n; i++) {
-            address member = group.members[i];
-            int bal = balances[member];
-            if (bal > 0) creditors[credCount++] = member;
-            else if (bal < 0) debtors[debtCount++] = member;
-        }
-
-        // Step 4: Greedy Matching
-        uint i = 0;
-        uint j = 0;
-        while (i < debtCount && j < credCount) {
-            address debtor = debtors[i];
-            address creditor = creditors[j];
-            int debtBal = -balances[debtor];
-            int credBal = balances[creditor];
-            uint256 minTransfer = uint256(debtBal < credBal ? debtBal : credBal);
-
-            group.debts[debtor][creditor] = minTransfer;
-
-            balances[debtor] += int(minTransfer);
-            balances[creditor] -= int(minTransfer);
-
-            if (balances[debtor] == 0) i++;
-            if (balances[creditor] == 0) j++;
+    for (uint i = 0; i < n; i++) {
+        address a = group.members[i];
+        for (uint j = 0; j < n; j++) {
+            address b = group.members[j];
+            balances[i] -= group.debts[a][b];
+            balances[i] += group.debts[b][a];
         }
     }
 
-    function getDebt(uint groupId, address from, address to) public view returns (uint) {
+    // Step 2: Clear old debts
+    for (uint i1 = 0; i1 < n; i1++) {
+        for (uint j1 = 0; j1 < n; j1++) {
+            group.debts[group.members[i1]][group.members[j1]] = 0;
+        }
+    }
+
+    // Step 3: Separate creditors and debtors
+    address[] memory creditors = new address[](n);
+    int256[] memory credBalances = new int256[](n);
+    address[] memory debtors = new address[](n);
+    int256[] memory debtBalances = new int256[](n);
+    uint credCount = 0;
+    uint debtCount = 0;
+
+    for (uint i = 0; i < n; i++) {
+        int256 bal = balances[i];
+        address member = group.members[i];
+        if (bal > 0) {
+            creditors[credCount] = member;
+            credBalances[credCount] = bal;
+            credCount++;
+        } else if (bal < 0) {
+            debtors[debtCount] = member;
+            debtBalances[debtCount] = -bal; // make it positive
+            debtCount++;
+        }
+    }
+
+    // Step 4: Greedy Matching
+    uint debtIdx = 0;
+    uint credIdx = 0;
+
+    while (debtIdx < debtCount && credIdx < credCount) {
+        uint256 minAmount = debtBalances[debtIdx] < credBalances[credIdx]
+            ? uint256(debtBalances[debtIdx])
+            : uint256(credBalances[credIdx]);
+
+        group.debts[debtors[debtIdx]][creditors[credIdx]] = int256(minAmount);
+
+        debtBalances[debtIdx] -= int256(minAmount);
+        credBalances[credIdx] -= int256(minAmount);
+
+        if (debtBalances[debtIdx] == 0) debtIdx++;
+        if (credBalances[credIdx] == 0) credIdx++;
+    }
+
+}
+
+    function getDebt(
+        uint groupId,
+        address from,
+        address to
+    ) public view returns (int256) {
         return groups[groupId].debts[from][to];
     }
 
-    function getExpenses(uint256 groupId) external view returns (Expense[] memory) {
+    function getExpenses(
+        uint256 groupId
+    ) external view returns (Expense[] memory) {
         return groups[groupId].expenses;
     }
 
-    function settleDebt(uint groupId, address to) external onlyMember(groupId) {
-        groups[groupId].debts[msg.sender][to] = 0;
-    }
+    //function settleDebt(uint groupId, address to) external onlyMember(groupId) {
+      //  groups[groupId].debts[msg.sender][to] = 0;
+    //}
 
-    function settleDebt(uint256 groupId, address creditor, uint256 amount) external {
+    function settleDebt(
+    uint256 groupId,
+    address creditor,
+    uint256 amount
+    ) external {
         Group storage group = groups[groupId];
         require(group.exists, "Group does not exist");
-        require(isGroupMember(groupId, msg.sender), "You are not a member of this group");
-        require(isGroupMember(groupId, creditor), "Creditor is not a member of this group");
-        require(group.debts[msg.sender][creditor] >= amount, "Not that much debt to settle");
+        require(
+            isGroupMember(groupId, msg.sender),
+            "You are not a member of this group"
+        );
+        require(
+            isGroupMember(groupId, creditor),
+            "Creditor is not a member of this group"
+        );
 
-        // Transfer ERC-20 tokens from debtor to creditor
+        int256 currentDebt = group.debts[msg.sender][creditor];
+        require(currentDebt >= 0, "No outstanding debt");
+        require(uint256(currentDebt) >= amount, "Not enough debt to settle");
+
+        // Transfer ERC-20 tokens
         bool success = token.transferFrom(msg.sender, creditor, amount);
         require(success, "Token transfer failed");
 
         // Update debt mapping
-        group.debts[msg.sender][creditor] -= amount;
+        group.debts[msg.sender][creditor] -= int256(amount);
 
         emit DebtSettled(groupId, msg.sender, creditor, amount);
     }
-    
 
-   function getDebtGraph(uint256 groupId) external view returns (
-        address[] memory debtors,
-        address[] memory creditors,
-        uint256[] memory amounts
-    ) {
+
+    function getDebtGraph(
+        uint256 groupId
+    )
+        external
+        view
+        returns (
+            address[] memory debtors,
+            address[] memory creditors,
+            uint256[] memory amounts
+        )
+    {
         Group storage group = groups[groupId];
         uint256 membersCount = group.members.length;
 
@@ -247,7 +297,9 @@ contract SplitwiseContract {
         uint256 index = 0;
         for (uint i = 0; i < membersCount; i++) {
             for (uint j = 0; j < membersCount; j++) {
-                int256 debtAmount = group.debts[group.members[i]][group.members[j]];
+                int256 debtAmount = group.debts[group.members[i]][
+                    group.members[j]
+                ];
                 if (debtAmount > 0) {
                     debtors[index] = group.members[i];
                     creditors[index] = group.members[j];
@@ -257,6 +309,4 @@ contract SplitwiseContract {
             }
         }
     }
-    
-
 }
