@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+IERC20 public token;
+
+    constructor(address tokenAddress) {
+        token = IERC20(tokenAddress);
+    }
+
+
+
 contract SplitwiseContract {
     struct Expense {
         string description;
@@ -24,10 +34,17 @@ contract SplitwiseContract {
     uint256 public groupIdCounter;
     mapping(uint256 => Group) private groups;
 
+    // IERC20 public token;
+
     event GroupCreated(uint256 groupId, string name, address creator);
     event MemberJoined(uint256 groupId, address member);
     event ExpenseAdded(uint256 groupId, string description, uint256 amount, address paidBy);
-
+    //event DebtSettled(uint256 groupId, address from, address to, uint256 amount);
+    
+    /*constructor(address tokenAddress) {
+        token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
+    }*/
+    
     modifier onlyMember(uint256 groupId) {
         require(groups[groupId].isMember[msg.sender], "Not a group member");
         _;
@@ -104,6 +121,16 @@ contract SplitwiseContract {
                 group.debts[member][msg.sender] += share;
             }
         }
+        
+        Expense memory newExpense = Expense({
+            description: description,
+            amount: amount,
+            paidBy: msg.sender,
+            involved: involved,
+            timestamp: block.timestamp
+        });
+
+        group.expenses.push(newExpense);*/
 
         emit ExpenseAdded(groupId, msg.sender, amount, description);
     }
@@ -175,5 +202,61 @@ contract SplitwiseContract {
     function settleDebt(uint groupId, address to) external onlyMember(groupId) {
         groups[groupId].debts[msg.sender][to] = 0;
     }
+
+    function settleDebt(uint256 groupId, address creditor, uint256 amount) external {
+        Group storage group = groups[groupId];
+        require(group.exists, "Group does not exist");
+        require(isGroupMember(groupId, msg.sender), "You are not a member of this group");
+        require(isGroupMember(groupId, creditor), "Creditor is not a member of this group");
+        require(group.debts[msg.sender][creditor] >= amount, "Not that much debt to settle");
+
+        // Transfer ERC-20 tokens from debtor to creditor
+        bool success = token.transferFrom(msg.sender, creditor, amount);
+        require(success, "Token transfer failed");
+
+        // Update debt mapping
+        group.debts[msg.sender][creditor] -= amount;
+
+        emit DebtSettled(groupId, msg.sender, creditor, amount);
+    }
+    
+
+   function getDebtGraph(uint256 groupId) external view returns (
+        address[] memory debtors,
+        address[] memory creditors,
+        uint256[] memory amounts
+    ) {
+        Group storage group = groups[groupId];
+        uint256 membersCount = group.members.length;
+
+        // Count total debts to size the arrays
+        uint256 count = 0;
+        for (uint i = 0; i < membersCount; i++) {
+            for (uint j = 0; j < membersCount; j++) {
+                if (group.debts[group.members[i]][group.members[j]] > 0) {
+                    count++;
+                }
+            }
+        }
+
+        // Initialize arrays to the count size
+        debtors = new address[](count);
+        creditors = new address[](count);
+        amounts = new uint256[](count);
+
+        uint256 index = 0;
+        for (uint i = 0; i < membersCount; i++) {
+            for (uint j = 0; j < membersCount; j++) {
+                int256 debtAmount = group.debts[group.members[i]][group.members[j]];
+                if (debtAmount > 0) {
+                    debtors[index] = group.members[i];
+                    creditors[index] = group.members[j];
+                    amounts[index] = uint256(debtAmount);
+                    index++;
+                }
+            }
+        }
+    }
+    
 
 }
