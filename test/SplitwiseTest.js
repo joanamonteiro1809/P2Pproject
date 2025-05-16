@@ -72,7 +72,6 @@ describe("Splitwise System", function () {
   });
 
   it("Should allow settling debt with TRUST tokens", async function () {
-    // user2 owes user1
     await splitwise.connect(user1).addExpense(groupId, "Coffee", 100, [user1.address, user2.address]);
 
     // Mint tokens to user2 (ajuste conforme sua função mint)
@@ -92,8 +91,7 @@ describe("Splitwise System", function () {
 
     const remainingDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
 
-    // Como você subtrai 50, e dívida inicial é 50, o resto é zero
-    expect(remainingDebt).to.equal(0n); // 0 como bigint
+    expect(remainingDebt).to.equal(0n); 
   });
 
   it("Should emit events correctly", async function () {
@@ -114,6 +112,45 @@ describe("Splitwise System", function () {
 
   const settleReceipt = await settleTx.wait();
   console.log("Gas used for settleDebt (event test):", settleReceipt.gasUsed.toString());
+  });
+
+  it("Should not allow settling debt without token approval", async () => {
+    const [alice, bob] = await ethers.getSigners();
+    await splitwise.createGroup("Group A", [alice.address, bob.address]);
+    await splitwise.connect(alice).addExpense(0, "Test Expense", 100, [bob.address]);
+    await expect(
+  splitwise.connect(bob).settleDebt(0, alice.address, 100)).to.be.reverted;
+
+  });
+
+  it("Should not allow a user to join a group twice", async () => {
+  const [alice, bob] = await ethers.getSigners();
+  await splitwise.createGroup("Group A", [alice.address, bob.address]);
+  await expect(splitwise.connect(alice).joinGroup(0)).to.be.revertedWith('Already a member');
+});
+
+it("Should return correct debt graph after multiple expenses", async () => {
+  const [alice, bob, charlie] = await ethers.getSigners();
+
+  await splitwise.createGroup("Group A", [alice.address, bob.address, charlie.address]);
+
+  const groupIdCounter = await splitwise.groupIdCounter();
+  const groupId = groupIdCounter - 1n;
+
+  await splitwise.connect(alice).addExpense(groupId, "Lunch", 100, [bob.address]);
+  await splitwise.connect(bob).addExpense(groupId, "Drinks", 50, [charlie.address]);
+
+  const debts = await splitwise.getDebtGraph(groupId);
+  const [froms, tos, amounts] = debts;
+
+  console.log("froms:", froms);
+  console.log("tos:", tos);
+  console.log("amounts:", amounts.map(a => a.toString()));
+
+  expect(amounts.length).to.equal(2);
+  expect(amounts[0]).to.equal(100n);
+  expect(amounts[1]).to.equal(50n);
+
 });
 
 });

@@ -2,11 +2,9 @@ const hre = require("hardhat");
 
   // deploy-token.js
 async function main() {
-  const SplitwiseToken = await hre.ethers.getContractFactory("SplitwiseToken");
-  const token = await SplitwiseToken.deploy();
-
-  await token.deployed();
-  console.log("SplitwiseToken deployed to:", token.address);
+  const Token = await ethers.getContractFactory("SplitwiseToken");
+    const token = await Token.deploy(); // já aguarda deploy completo
+    console.log("Token deployed at:", token.target); // endereço
 }
 
 main().catch((error) => {
