@@ -15,13 +15,17 @@ describe("Splitwise System", function () {
     splitwise = await Splitwise.deploy(token.target);
     await splitwise.waitForDeployment();
 
-    await splitwise.createGroup("Trip", [user1.address, user2.address, user3.address]);
+    const tx = await splitwise.createGroup("Trip", [user1.address, user2.address, user3.address]);
+    const receipt = await tx.wait();
+    console.log("Gas used for createGroup:", receipt.gasUsed.toString());
     groupId = Number(await splitwise.groupIdCounter()) - 1;
 
   });
 
   it("Should allow group creation and adding expenses", async function () {
-    await splitwise.connect(user1).addExpense(groupId, "Dinner", 90, [user1.address, user2.address, user3.address]);
+    const tx = await splitwise.connect(user1).addExpense(groupId, "Dinner", 90, [user1.address, user2.address, user3.address]);
+    const receipt = await tx.wait();
+    console.log("Gas used for addExpense:", receipt.gasUsed.toString());
 
     const debt1 = await splitwise.getDebt(groupId, user2.address, user1.address);
     const debt2 = await splitwise.getDebt(groupId, user3.address, user1.address);
@@ -56,7 +60,9 @@ describe("Splitwise System", function () {
     await splitwise.connect(user1).addExpense(groupId, "Taxi", 60, [user1.address, user2.address]);
     await splitwise.connect(user2).addExpense(groupId, "Snacks", 60, [user1.address, user2.address]);
 
-    await splitwise.connect(user1).simplifyDebts(groupId);
+    const tx = await splitwise.connect(user1).simplifyDebts(groupId);
+    const receipt = await tx.wait();
+    console.log("Gas used for simplifyDebts:", receipt.gasUsed.toString());
 
     const debt1 = await splitwise.getDebt(groupId, user2.address, user1.address);
     const debt2 = await splitwise.getDebt(groupId, user1.address, user2.address);
@@ -71,11 +77,19 @@ describe("Splitwise System", function () {
 
     // Mint tokens to user2 (ajuste conforme sua função mint)
     //await token.connect(user2).mint(user2.address, ethers.parseUnits("100", 18));
-    await token.mint(user2.address, ethers.parseUnits("100", 18));
+    const mintTx = await token.mint(user2.address, ethers.parseUnits("100", 18));
+    const mintReceipt = await mintTx.wait();
+    console.log("Gas used for mint:", mintReceipt.gasUsed.toString());
 
     // Approve splitwise to spend tokens on behalf of user2
-    await token.connect(user2).approve(splitwise.target, 50);
-    await splitwise.connect(user2).settleDebt(groupId, user1.address, 50);
+    const approveTx = await token.connect(user2).approve(splitwise.target, 50);
+    const approveReceipt = await approveTx.wait();
+    console.log("Gas used for approve:", approveReceipt.gasUsed.toString());
+
+    const settleTx = await splitwise.connect(user2).settleDebt(groupId, user1.address, 50);
+    const settleReceipt = await settleTx.wait();
+    console.log("Gas used for settleDebt:", settleReceipt.gasUsed.toString());
+
     const remainingDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
 
     // Como você subtrai 50, e dívida inicial é 50, o resto é zero
@@ -83,26 +97,23 @@ describe("Splitwise System", function () {
   });
 
   it("Should emit events correctly", async function () {
-  // Cria dívida de user2 com user1
-  await splitwise.connect(user1).addExpense(groupId, "Brunch", 60, [user1.address, user2.address]);
+  const addTx = await splitwise.connect(user1).addExpense(groupId, "Brunch", 60, [user1.address, user2.address]);
+  await expect(addTx).to.emit(splitwise, "ExpenseAdded");
 
-  // Confirma que há dívida de 30 (60/2)
   const currentDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
   expect(currentDebt).to.equal(30);
 
-  // Emite evento ao adicionar despesa
-  await expect(
-    splitwise.connect(user1).addExpense(groupId, "Brunch", 60, [user1.address, user2.address])
-  ).to.emit(splitwise, "ExpenseAdded");
+  const mintTx = await token.mint(user2.address, 30);
+  await mintTx.wait();
 
-  // Prepara tokens
-  await token.mint(user2.address, 30);
-  await token.connect(user2).approve(splitwise.target, 30);
+  const approveTx = await token.connect(user2).approve(splitwise.target, 30);
+  await approveTx.wait();
 
-  // Emite evento ao quitar dívida
-  await expect(
-    splitwise.connect(user2).settleDebt(groupId, user1.address, 30)
-  ).to.emit(splitwise, "DebtSettled");
+  const settleTx = await splitwise.connect(user2).settleDebt(groupId, user1.address, 30);
+  await expect(settleTx).to.emit(splitwise, "DebtSettled");
+
+  const settleReceipt = await settleTx.wait();
+  console.log("Gas used for settleDebt (event test):", settleReceipt.gasUsed.toString());
 });
 
 });
