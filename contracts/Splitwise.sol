@@ -276,7 +276,7 @@ contract Splitwise{
         emit DebtSettled(groupId, msg.sender, creditor, amount);
     }
 
-    /*function settleDebtWithETH(uint256 groupId, address creditor) external payable onlyMember(groupId) {
+    function settleDebtWithETH(uint256 groupId, address creditor) external payable onlyMember(groupId) {
         Group storage group = groups[groupId];
         require(group.exists, "Group does not exist");
         require(isGroupMember(groupId, creditor), "Creditor not in group");
@@ -293,7 +293,7 @@ contract Splitwise{
         require(sent, "Failed to send Ether");
 
         emit DebtSettled(groupId, msg.sender, creditor, msg.value);
-    }*/
+    }
 
     function getDebtGraph(
         uint256 groupId

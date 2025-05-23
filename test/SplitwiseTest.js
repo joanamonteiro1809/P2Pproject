@@ -144,6 +144,7 @@ describe("Splitwise System", function () {
     expect(amounts[1]).to.equal(50n);
 
   });
+
   it("Should allow settling debt with ETH", async () => {
     const [alice, bob] = await ethers.getSigners();
 
