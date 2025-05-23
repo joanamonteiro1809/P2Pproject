@@ -91,11 +91,12 @@ contract Splitwise{
         emit MemberJoined(groupId, msg.sender);
     }
 
-    function getGroupMembers(
+    /*function getGroupMembers(
         uint256 groupId
     ) external view returns (address[] memory) {
         return groups[groupId].members;
     }
+    */
 
     function isGroupMember(
         uint256 groupId,
