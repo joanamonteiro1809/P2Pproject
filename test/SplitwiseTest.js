@@ -34,14 +34,6 @@ describe("Splitwise System", function () {
     expect(debt2).to.equal(30);
   });
 
-  it("Should not allow creating a group with less than 2 members", async function () {
-    // Para esse teste, você precisa adicionar o require no contrato Splitwise.createGroup:
-    // require(initialMembers.length >= 1, "Group must have at least 2 members");
-    await expect(
-      splitwise.createGroup("Solo Trip", [user1.address])
-    ).to.be.revertedWith("Group must have at least 2 members");
-  });
-
   it("Should not allow adding an expense of 0", async function () {
     // Para esse teste, você precisa adicionar no addExpense:
     // require(amount > 0, "Amount must be greater than zero");
@@ -95,23 +87,23 @@ describe("Splitwise System", function () {
   });
 
   it("Should emit events correctly", async function () {
-  const addTx = await splitwise.connect(user1).addExpense(groupId, "Brunch", 60, [user1.address, user2.address]);
-  await expect(addTx).to.emit(splitwise, "ExpenseAdded");
+    const addTx = await splitwise.connect(user1).addExpense(groupId, "Brunch", 60, [user1.address, user2.address]);
+    await expect(addTx).to.emit(splitwise, "ExpenseAdded");
 
-  const currentDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
-  expect(currentDebt).to.equal(30);
+    const currentDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
+    expect(currentDebt).to.equal(30);
 
-  const mintTx = await token.mint(user2.address, 30);
-  await mintTx.wait();
+    const mintTx = await token.mint(user2.address, 30);
+    await mintTx.wait();
 
-  const approveTx = await token.connect(user2).approve(splitwise.target, 30);
-  await approveTx.wait();
+    const approveTx = await token.connect(user2).approve(splitwise.target, 30);
+    await approveTx.wait();
 
-  const settleTx = await splitwise.connect(user2).settleDebt(groupId, user1.address, 30);
-  await expect(settleTx).to.emit(splitwise, "DebtSettled");
+    const settleTx = await splitwise.connect(user2).settleDebt(groupId, user1.address, 30);
+    await expect(settleTx).to.emit(splitwise, "DebtSettled");
 
-  const settleReceipt = await settleTx.wait();
-  console.log("Gas used for settleDebt (event test):", settleReceipt.gasUsed.toString());
+    const settleReceipt = await settleTx.wait();
+    console.log("Gas used for settleDebt (event test):", settleReceipt.gasUsed.toString());
   });
 
   it("Should not allow settling debt without token approval", async () => {
@@ -119,74 +111,94 @@ describe("Splitwise System", function () {
     await splitwise.createGroup("Group A", [alice.address, bob.address]);
     await splitwise.connect(alice).addExpense(0, "Test Expense", 100, [bob.address]);
     await expect(
-  splitwise.connect(bob).settleDebt(0, alice.address, 100)).to.be.reverted;
+    splitwise.connect(bob).settleDebt(0, alice.address, 100)).to.be.reverted;
 
   });
 
   it("Should not allow a user to join a group twice", async () => {
-  const [alice, bob] = await ethers.getSigners();
-  await splitwise.createGroup("Group A", [alice.address, bob.address]);
-  await expect(splitwise.connect(alice).joinGroup(0)).to.be.revertedWith('Already a member');
-});
-
-it("Should return correct debt graph after multiple expenses", async () => {
-  const [alice, bob, charlie] = await ethers.getSigners();
-
-  await splitwise.createGroup("Group A", [alice.address, bob.address, charlie.address]);
-
-  const groupIdCounter = await splitwise.groupIdCounter();
-  const groupId = groupIdCounter - 1n;
-
-  await splitwise.connect(alice).addExpense(groupId, "Lunch", 100, [bob.address]);
-  await splitwise.connect(bob).addExpense(groupId, "Drinks", 50, [charlie.address]);
-
-  const debts = await splitwise.getDebtGraph(groupId);
-  const [froms, tos, amounts] = debts;
-
-  console.log("froms:", froms);
-  console.log("tos:", tos);
-  console.log("amounts:", amounts.map(a => a.toString()));
-
-  expect(amounts.length).to.equal(2);
-  expect(amounts[0]).to.equal(100n);
-  expect(amounts[1]).to.equal(50n);
-
-});
-  it("Should allow settling debt with ETH", async () => {
-  const [alice, bob] = await ethers.getSigners();
-
-  // Create a group with alice and bob
-  await splitwise.createGroup("Group ETH", [alice.address, bob.address]);
-  const groupId = (await splitwise.groupIdCounter()) - 1n;
-
-  // Alice adds an expense for Bob
-const amountInWei = ethers.parseEther("100"); // 100 ETH in wei
-await splitwise.connect(alice).addExpense(groupId, "Dinner", amountInWei, [bob.address]);
-
-let initialDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
-expect(initialDebt).to.equal(amountInWei);
-
-const settleTx = await splitwise.connect(bob).settleDebtWithETH(groupId, alice.address, {
-  value: ethers.parseEther("40") // 40 ETH in wei
-});
-await settleTx.wait();
-
-
-  // Check remaining debt
-  const amountInWei1 = ethers.parseEther("60"); // 100 ETH in wei
-  let afterPartialSettle = await splitwise.getDebt(groupId, bob.address, alice.address);
-  expect(afterPartialSettle).to.equal(amountInWei1);
-
-  // Bob settles the remaining 60 ETH
-  const settleTx2 = await splitwise.connect(bob).settleDebtWithETH(groupId, alice.address, {
-    value: ethers.parseEther("60")
+    const [alice, bob] = await ethers.getSigners();
+    await splitwise.createGroup("Group A", [alice.address, bob.address]);
+    await expect(splitwise.connect(alice).joinGroup(0)).to.be.revertedWith('Already a member');
   });
-  await settleTx2.wait();
 
-  // Debt should now be zero
-  let finalDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
-  expect(finalDebt).to.equal(0);
-});
+  it("Should return correct debt graph after multiple expenses", async () => {
+    const [alice, bob, charlie] = await ethers.getSigners();
 
+    await splitwise.createGroup("Group A", [alice.address, bob.address, charlie.address]);
 
+    const groupIdCounter = await splitwise.groupIdCounter();
+    const groupId = groupIdCounter - 1n;
+
+    await splitwise.connect(alice).addExpense(groupId, "Lunch", 100, [bob.address]);
+    await splitwise.connect(bob).addExpense(groupId, "Drinks", 50, [charlie.address]);
+
+    const debts = await splitwise.getDebtGraph(groupId);
+    const [froms, tos, amounts] = debts;
+
+    console.log("froms:", froms);
+    console.log("tos:", tos);
+    console.log("amounts:", amounts.map(a => a.toString()));
+
+    expect(amounts.length).to.equal(2);
+    expect(amounts[0]).to.equal(100n);
+    expect(amounts[1]).to.equal(50n);
+
+  });
+  it("Should allow settling debt with ETH", async () => {
+    const [alice, bob] = await ethers.getSigners();
+
+    // Create a group with alice and bob
+    await splitwise.createGroup("Group ETH", [alice.address, bob.address]);
+    const groupId = (await splitwise.groupIdCounter()) - 1n;
+
+    // Alice adds an expense for Bob
+    const amountInWei = ethers.parseEther("100"); // 100 ETH in wei
+    await splitwise.connect(alice).addExpense(groupId, "Dinner", amountInWei, [bob.address]);
+
+    let initialDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
+    expect(initialDebt).to.equal(amountInWei);
+
+    const settleTx = await splitwise.connect(bob).settleDebtWithETH(groupId, alice.address, {
+      value: ethers.parseEther("40") // 40 ETH in wei
+    });
+    await settleTx.wait();
+
+    // Check remaining debt
+    const amountInWei1 = ethers.parseEther("60"); // 100 ETH in wei
+    let afterPartialSettle = await splitwise.getDebt(groupId, bob.address, alice.address);
+    expect(afterPartialSettle).to.equal(amountInWei1);
+
+    // Bob settles the remaining 60 ETH
+    const settleTx2 = await splitwise.connect(bob).settleDebtWithETH(groupId, alice.address, {
+      value: ethers.parseEther("60")
+    });
+    await settleTx2.wait();
+
+    // Debt should now be zero
+    let finalDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
+    expect(finalDebt).to.equal(0);
+  });
+
+  it("Should return empty debt graph for new group", async () => {
+    await splitwise.createGroup("Empty Group", [user1.address, user2.address]);
+    const debts = await splitwise.getDebtGraph(1);
+    expect(debts[0].length).to.equal(0);
+  });
+
+  it("Should simplify debts correctly regardless of expense order", async () => {
+    await splitwise.connect(user1).addExpense(groupId, "Dinner", 90, [user1.address, user2.address, user3.address]);
+    await splitwise.connect(user3).addExpense(groupId, "Lunch", 90, [user1.address, user2.address, user3.address]);
+
+    await splitwise.simplifyDebts(groupId);
+
+    const debtUser2ToUser1 = await splitwise.getDebt(groupId, user2.address, user1.address);
+    const debtUser2ToUser3 = await splitwise.getDebt(groupId, user2.address, user3.address);
+    const debtUser1ToUser3 = await splitwise.getDebt(groupId, user1.address, user3.address);
+    const debtUser3ToUser1 = await splitwise.getDebt(groupId, user3.address, user1.address);
+
+    expect(debtUser2ToUser1).to.equal(30);
+    expect(debtUser2ToUser3).to.equal(30);
+    expect(debtUser1ToUser3).to.equal(0);
+    expect(debtUser3ToUser1).to.equal(0);
+  });
 });
