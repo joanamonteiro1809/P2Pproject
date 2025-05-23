@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "./SplitwiseToken.sol";
+
 contract Splitwise{
     struct Expense {
         string description;
@@ -26,7 +28,8 @@ contract Splitwise{
     uint256 public groupIdCounter;
     mapping(uint256 => Group) private groups;
 
-    IERC20 public token;
+
+    SplitwiseToken public token;
 
     event GroupCreated(uint256 groupId, string name, address creator, address[] members);
     event MemberJoined(uint256 groupId, address member);
@@ -44,8 +47,20 @@ contract Splitwise{
     );
 
     constructor(address tokenAddress) {
-        token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
+    token = SplitwiseToken(tokenAddress); // ✅ Proper casting to call mint()
+}
+
+
+    uint256 public constant TOKENS_PER_ETH = 1000;
+
+    function mintWithETH() external payable {
+        require(msg.value > 0, "Send ETH to mint tokens");
+
+        uint256 tokensToMint = msg.value * TOKENS_PER_ETH;
+
+        token.mint(msg.sender, tokensToMint);
     }
+
 
     modifier onlyMember(uint256 groupId) {
         require(groups[groupId].isMember[msg.sender], "Not a group member");
@@ -261,7 +276,7 @@ contract Splitwise{
         emit DebtSettled(groupId, msg.sender, creditor, amount);
     }
 
-    function settleDebtWithETH(uint256 groupId, address creditor) external payable onlyMember(groupId) {
+    /*function settleDebtWithETH(uint256 groupId, address creditor) external payable onlyMember(groupId) {
         Group storage group = groups[groupId];
         require(group.exists, "Group does not exist");
         require(isGroupMember(groupId, creditor), "Creditor not in group");
@@ -278,7 +293,7 @@ contract Splitwise{
         require(sent, "Failed to send Ether");
 
         emit DebtSettled(groupId, msg.sender, creditor, msg.value);
-    }
+    }*/
 
     function getDebtGraph(
         uint256 groupId
