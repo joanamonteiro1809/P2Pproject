@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./SplitwiseToken.sol";
+//import "./SplitwiseToken.sol";
 
 contract Splitwise{
     struct Expense {
@@ -28,8 +28,9 @@ contract Splitwise{
     uint256 public groupIdCounter;
     mapping(uint256 => Group) private groups;
 
+    IERC20 public token;
 
-    SplitwiseToken public token;
+    //SplitwiseToken public token;
 
     event GroupCreated(uint256 groupId, string name, address creator, address[] members);
     event MemberJoined(uint256 groupId, address member);
@@ -47,19 +48,18 @@ contract Splitwise{
     );
 
     constructor(address tokenAddress) {
-    token = SplitwiseToken(tokenAddress); // ✅ Proper casting to call mint()
-}
-
+        token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
+    }
 
     uint256 public constant TOKENS_PER_ETH = 1000;
 
-    function mintWithETH() external payable {
+    /*function mintWithETH() external payable {
         require(msg.value > 0, "Send ETH to mint tokens");
 
         uint256 tokensToMint = msg.value * TOKENS_PER_ETH;
 
         token.mint(msg.sender, tokensToMint);
-    }
+    }*/
 
 
     modifier onlyMember(uint256 groupId) {
