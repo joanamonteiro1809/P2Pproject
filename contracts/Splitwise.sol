@@ -28,7 +28,7 @@ contract Splitwise{
 
     IERC20 public token;
 
-    event GroupCreated(uint256 groupId, string name, address creator);
+    event GroupCreated(uint256 groupId, string name, address creator, address[] members);
     event MemberJoined(uint256 groupId, address member);
     event ExpenseAdded(
         uint256 groupId,
@@ -53,10 +53,11 @@ contract Splitwise{
     }
 
     function createGroup(
-        string calldata name,
-        address[] calldata initialMembers
+    string calldata name,
+    address[] calldata initialMembers
     ) external returns (uint256) {
-        require(initialMembers.length >= 2, "Group must have at least 2 members"); 
+        require(initialMembers.length >= 1, "Group must have at least 2 members including creator");
+
         uint256 groupId = groupIdCounter++;
         Group storage group = groups[groupId];
         group.name = name;
@@ -65,7 +66,7 @@ contract Splitwise{
         group.members.push(msg.sender);
         group.isMember[msg.sender] = true;
 
-        // Add initial members
+        // Add initial members (no duplicates)
         for (uint i = 0; i < initialMembers.length; i++) {
             address member = initialMembers[i];
             if (!group.isMember[member]) {
@@ -76,7 +77,7 @@ contract Splitwise{
 
         group.exists = true;
 
-        emit GroupCreated(groupId, name, msg.sender);
+        emit GroupCreated(groupId, name, msg.sender, group.members);
         return groupId;
     }
 
