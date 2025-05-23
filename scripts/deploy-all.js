@@ -2,8 +2,8 @@ const { ethers } = require("hardhat");
 
 async function main() {
   const Token = await ethers.getContractFactory("SplitwiseToken");
-  const token = await Token.deploy(); // já aguarda deploy completo
-  console.log("Token deployed at:", token.target); // endereço
+  const token = await Token.deploy(); 
+  console.log("Token deployed at:", token.target); 
 
   const Splitwise = await ethers.getContractFactory("Splitwise");
   const splitwise = await Splitwise.deploy(token.target);

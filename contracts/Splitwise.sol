@@ -259,6 +259,24 @@ contract Splitwise{
         emit DebtSettled(groupId, msg.sender, creditor, amount);
     }
 
+    function settleDebtWithETH(uint256 groupId, address creditor) external payable onlyMember(groupId) {
+        Group storage group = groups[groupId];
+        require(group.exists, "Group does not exist");
+        require(isGroupMember(groupId, creditor), "Creditor not in group");
+
+        int256 currentDebt = group.debts[msg.sender][creditor];
+        require(currentDebt > 0, "No debt to settle");
+        require(msg.value <= uint256(currentDebt), "Paying more than debt");
+
+        // Accept ETH and update debt
+        group.debts[msg.sender][creditor] -= int256(msg.value);
+
+        // Send ETH to creditor
+        (bool sent, ) = creditor.call{value: msg.value}("");
+        require(sent, "Failed to send Ether");
+
+        emit DebtSettled(groupId, msg.sender, creditor, msg.value);
+    }
 
     function getDebtGraph(
         uint256 groupId

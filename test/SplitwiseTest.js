@@ -152,5 +152,41 @@ it("Should return correct debt graph after multiple expenses", async () => {
   expect(amounts[1]).to.equal(50n);
 
 });
+  it("Should allow settling debt with ETH", async () => {
+  const [alice, bob] = await ethers.getSigners();
+
+  // Create a group with alice and bob
+  await splitwise.createGroup("Group ETH", [alice.address, bob.address]);
+  const groupId = (await splitwise.groupIdCounter()) - 1n;
+
+  // Alice adds an expense for Bob
+const amountInWei = ethers.parseEther("100"); // 100 ETH in wei
+await splitwise.connect(alice).addExpense(groupId, "Dinner", amountInWei, [bob.address]);
+
+let initialDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
+expect(initialDebt).to.equal(amountInWei);
+
+const settleTx = await splitwise.connect(bob).settleDebtWithETH(groupId, alice.address, {
+  value: ethers.parseEther("40") // 40 ETH in wei
+});
+await settleTx.wait();
+
+
+  // Check remaining debt
+  const amountInWei1 = ethers.parseEther("60"); // 100 ETH in wei
+  let afterPartialSettle = await splitwise.getDebt(groupId, bob.address, alice.address);
+  expect(afterPartialSettle).to.equal(amountInWei1);
+
+  // Bob settles the remaining 60 ETH
+  const settleTx2 = await splitwise.connect(bob).settleDebtWithETH(groupId, alice.address, {
+    value: ethers.parseEther("60")
+  });
+  await settleTx2.wait();
+
+  // Debt should now be zero
+  let finalDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
+  expect(finalDebt).to.equal(0);
+});
+
 
 });
