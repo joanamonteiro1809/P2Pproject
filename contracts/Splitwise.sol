@@ -51,15 +51,7 @@ contract Splitwise{
         token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
     }
 
-    uint256 public constant TOKENS_PER_ETH = 1000;
-
-    /*function mintWithETH() external payable {
-        require(msg.value > 0, "Send ETH to mint tokens");
-
-        uint256 tokensToMint = msg.value * TOKENS_PER_ETH;
-
-        token.mint(msg.sender, tokensToMint);
-    }*/
+    //uint256 public constant TOKENS_PER_ETH = 1000;
 
 
     modifier onlyMember(uint256 groupId) {

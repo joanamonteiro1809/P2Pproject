@@ -68,7 +68,8 @@ describe("Splitwise System", function () {
 
     // Mint tokens to user2 (ajuste conforme sua função mint)
     //await token.connect(user2).mint(user2.address, ethers.parseUnits("100", 18));
-    const mintTx = await token.mint(user2.address, ethers.parseUnits("100", 18));
+    //const mintTx = await token.mint(user2.address, ethers.parseUnits("100", 18));
+    const mintTx = await token.connect(user2).mintWithETH({ value: ethers.parseEther("0.1") });
     const mintReceipt = await mintTx.wait();
     console.log("Gas used for mint:", mintReceipt.gasUsed.toString());
 
@@ -86,25 +87,24 @@ describe("Splitwise System", function () {
     expect(remainingDebt).to.equal(0n); 
   });
 
-  it("Should emit events correctly", async function () {
-    const addTx = await splitwise.connect(user1).addExpense(groupId, "Brunch", 60, [user1.address, user2.address]);
+  it("Should emit events correctly and settle debts using TRUST tokens minted with ETH", async function () {
+    const addTx = await splitwise.connect(user1).addExpense(groupId, "Brunch", ethers.parseUnits("60", 18), [user1.address, user2.address]);
     await expect(addTx).to.emit(splitwise, "ExpenseAdded");
 
+    const expectedDebt = ethers.parseUnits("30", 18);
     const currentDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
-    expect(currentDebt).to.equal(30);
+    expect(currentDebt).to.equal(expectedDebt);
 
-    const mintTx = await token.mint(user2.address, 30);
-    await mintTx.wait();
+    await token.connect(user2).mintWithETH({ value: ethers.parseEther("0.03") });
 
-    const approveTx = await token.connect(user2).approve(splitwise.target, 30);
-    await approveTx.wait();
+    await token.connect(user2).approve(splitwise.target, expectedDebt);
 
-    const settleTx = await splitwise.connect(user2).settleDebt(groupId, user1.address, 30);
+    const settleTx = await splitwise.connect(user2).settleDebt(groupId, user1.address, expectedDebt);
     await expect(settleTx).to.emit(splitwise, "DebtSettled");
 
-    const settleReceipt = await settleTx.wait();
-    console.log("Gas used for settleDebt (event test):", settleReceipt.gasUsed.toString());
-  });
+    const remainingDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
+    expect(remainingDebt).to.equal(0n);
+  });
 
   it("Should not allow settling debt without token approval", async () => {
     const [alice, bob] = await ethers.getSigners();
