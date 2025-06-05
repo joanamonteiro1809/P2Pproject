@@ -8,7 +8,7 @@ contract SplitwiseToken is ERC20 {
 
     constructor() ERC20("Trust Token", "TRUST") {}
 
-    function mintWithETH() external payable {
+    function mint() external payable {
         require(msg.value > 0, "Send ETH to mint tokens");
         uint256 tokensToMint = msg.value * TOKENS_PER_ETH;
         _mint(msg.sender, tokensToMint);

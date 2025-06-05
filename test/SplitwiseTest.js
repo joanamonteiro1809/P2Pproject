@@ -64,7 +64,7 @@ describe("Splitwise System", function () {
   it("Should allow settling debt with TRUST tokens", async function () {
     await splitwise.connect(user1).addExpense(groupId, "Coffee", 100, [user1.address, user2.address]);
 
-    const mintTx = await token.connect(user2).mintWithETH({ value: ethers.parseEther("0.1") });
+    const mintTx = await token.connect(user2).mint({ value: ethers.parseEther("0.1") });
     const mintReceipt = await mintTx.wait();
     console.log("Gas used for mint:", mintReceipt.gasUsed.toString());
 
@@ -89,7 +89,7 @@ describe("Splitwise System", function () {
     const currentDebt = await splitwise.getDebt(groupId, user2.address, user1.address);
     expect(currentDebt).to.equal(expectedDebt);
 
-    await token.connect(user2).mintWithETH({ value: ethers.parseEther("0.03") });
+    await token.connect(user2).mint({ value: ethers.parseEther("0.03") });
 
     await token.connect(user2).approve(splitwise.target, expectedDebt);
 
