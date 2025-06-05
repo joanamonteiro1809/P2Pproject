@@ -30,29 +30,14 @@ contract Splitwise{
 
     IERC20 public token;
 
-    //SplitwiseToken public token;
-
     event GroupCreated(uint256 groupId, string name, address creator, address[] members);
     event MemberJoined(uint256 groupId, address member);
-    event ExpenseAdded(
-        uint256 groupId,
-        string description,
-        uint256 amount,
-        address paidBy
-    );
-    event DebtSettled(
-        uint256 groupId,
-        address from,
-        address to,
-        uint256 amount
-    );
+    event ExpenseAdded(uint256 groupId, string description, uint256 amount, address paidBy);
+    event DebtSettled(uint256 groupId, address from, address to, uint256 amount);
 
     constructor(address tokenAddress) {
         token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
     }
-
-    //uint256 public constant TOKENS_PER_ETH = 1000;
-
 
     modifier onlyMember(uint256 groupId) {
         require(groups[groupId].isMember[msg.sender], "Not a group member");
@@ -99,13 +84,6 @@ contract Splitwise{
         emit MemberJoined(groupId, msg.sender);
     }
 
-    /*function getGroupMembers(
-        uint256 groupId
-    ) external view returns (address[] memory) {
-        return groups[groupId].members;
-    }
-    */
-
     function isGroupMember(
         uint256 groupId,
         address user
@@ -137,7 +115,6 @@ contract Splitwise{
             require(isGroupMember(groupId, member), "User not in group");
 
             if (member != msg.sender) {
-                // Member owes msg.sender
                 group.debts[member][msg.sender] += int256(share);
             }
         }
@@ -151,74 +128,69 @@ contract Splitwise{
         });
 
         group.expenses.push(newExpense);
-
         emit ExpenseAdded(groupId, description, amount, msg.sender);
     }
 
     function simplifyDebts(uint groupId) public onlyMember(groupId) {
-    Group storage group = groups[groupId];
-    uint n = group.members.length;
+        Group storage group = groups[groupId];
+        uint n = group.members.length;
 
-    // Step 1: Compute balances
-    int256[] memory balances = new int256[](n);
+        int256[] memory balances = new int256[](n);
 
-    for (uint i = 0; i < n; i++) {
-        address a = group.members[i];
-        for (uint j = 0; j < n; j++) {
-            address b = group.members[j];
-            balances[i] -= group.debts[a][b];
-            balances[i] += group.debts[b][a];
+        for (uint i = 0; i < n; i++) {
+            address a = group.members[i];
+            for (uint j = 0; j < n; j++) {
+                address b = group.members[j];
+                balances[i] -= group.debts[a][b];
+                balances[i] += group.debts[b][a];
+            }
         }
-    }
 
-    // Step 2: Clear old debts
-    for (uint i1 = 0; i1 < n; i1++) {
-        for (uint j1 = 0; j1 < n; j1++) {
-            group.debts[group.members[i1]][group.members[j1]] = 0;
+        for (uint i1 = 0; i1 < n; i1++) {
+            for (uint j1 = 0; j1 < n; j1++) {
+                group.debts[group.members[i1]][group.members[j1]] = 0;
+            }
         }
-    }
 
-    // Step 3: Separate creditors and debtors
-    address[] memory creditors = new address[](n);
-    int256[] memory credBalances = new int256[](n);
-    address[] memory debtors = new address[](n);
-    int256[] memory debtBalances = new int256[](n);
-    uint credCount = 0;
-    uint debtCount = 0;
+        address[] memory creditors = new address[](n);
+        int256[] memory credBalances = new int256[](n);
+        address[] memory debtors = new address[](n);
+        int256[] memory debtBalances = new int256[](n);
+        uint credCount = 0;
+        uint debtCount = 0;
 
-    for (uint i = 0; i < n; i++) {
-        int256 bal = balances[i];
-        address member = group.members[i];
-        if (bal > 0) {
-            creditors[credCount] = member;
-            credBalances[credCount] = bal;
-            credCount++;
-        } else if (bal < 0) {
-            debtors[debtCount] = member;
-            debtBalances[debtCount] = -bal; // make it positive
-            debtCount++;
+        for (uint i = 0; i < n; i++) {
+            int256 bal = balances[i];
+            address member = group.members[i];
+            if (bal > 0) {
+                creditors[credCount] = member;
+                credBalances[credCount] = bal;
+                credCount++;
+            } else if (bal < 0) {
+                debtors[debtCount] = member;
+                debtBalances[debtCount] = -bal; 
+                debtCount++;
+            }
         }
+
+        uint debtIdx = 0;
+        uint credIdx = 0;
+
+        while (debtIdx < debtCount && credIdx < credCount) {
+            uint256 minAmount = debtBalances[debtIdx] < credBalances[credIdx]
+                ? uint256(debtBalances[debtIdx])
+                : uint256(credBalances[credIdx]);
+
+            group.debts[debtors[debtIdx]][creditors[credIdx]] = int256(minAmount);
+
+            debtBalances[debtIdx] -= int256(minAmount);
+            credBalances[credIdx] -= int256(minAmount);
+
+            if (debtBalances[debtIdx] == 0) debtIdx++;
+            if (credBalances[credIdx] == 0) credIdx++;
+        }
+
     }
-
-    // Step 4: Greedy Matching
-    uint debtIdx = 0;
-    uint credIdx = 0;
-
-    while (debtIdx < debtCount && credIdx < credCount) {
-        uint256 minAmount = debtBalances[debtIdx] < credBalances[credIdx]
-            ? uint256(debtBalances[debtIdx])
-            : uint256(credBalances[credIdx]);
-
-        group.debts[debtors[debtIdx]][creditors[credIdx]] = int256(minAmount);
-
-        debtBalances[debtIdx] -= int256(minAmount);
-        credBalances[credIdx] -= int256(minAmount);
-
-        if (debtBalances[debtIdx] == 0) debtIdx++;
-        if (credBalances[credIdx] == 0) credIdx++;
-    }
-
-}
 
     function getDebt(
         uint groupId,
@@ -233,10 +205,6 @@ contract Splitwise{
     ) external view returns (Expense[] memory) {
         return groups[groupId].expenses;
     }
-
-    //function settleDebt(uint groupId, address to) external onlyMember(groupId) {
-      //  groups[groupId].debts[msg.sender][to] = 0;
-    //}
 
     function settleDebt(
     uint256 groupId,
@@ -268,26 +236,6 @@ contract Splitwise{
         emit DebtSettled(groupId, msg.sender, creditor, amount);
     }
 
-    /*
-    function settleDebtWithETH(uint256 groupId, address creditor) external payable onlyMember(groupId) {
-        Group storage group = groups[groupId];
-        require(group.exists, "Group does not exist");
-        require(isGroupMember(groupId, creditor), "Creditor not in group");
-
-        int256 currentDebt = group.debts[msg.sender][creditor];
-        require(currentDebt > 0, "No debt to settle");
-        require(msg.value <= uint256(currentDebt), "Paying more than debt");
-
-        // Accept ETH and update debt
-        group.debts[msg.sender][creditor] -= int256(msg.value);
-
-        // Send ETH to creditor
-        (bool sent, ) = creditor.call{value: msg.value}("");
-        require(sent, "Failed to send Ether");
-
-        emit DebtSettled(groupId, msg.sender, creditor, msg.value);
-    }*/
-
     function getDebtGraph(
         uint256 groupId
     )
@@ -302,7 +250,6 @@ contract Splitwise{
         Group storage group = groups[groupId];
         uint256 membersCount = group.members.length;
 
-        // Count total debts to size the arrays
         uint256 count = 0;
         for (uint i = 0; i < membersCount; i++) {
             for (uint j = 0; j < membersCount; j++) {
@@ -312,7 +259,6 @@ contract Splitwise{
             }
         }
 
-        // Initialize arrays to the count size
         debtors = new address[](count);
         creditors = new address[](count);
         amounts = new uint256[](count);
