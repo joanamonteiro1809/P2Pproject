@@ -7,7 +7,7 @@ async function main() {
   console.log("User2:", user2.address);
 
   // Replace with your deployed contract address
-  const splitwiseAddress = "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9";
+  const splitwiseAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 
   const Splitwise = await ethers.getContractFactory("Splitwise");
   const splitwise = Splitwise.attach(splitwiseAddress);
