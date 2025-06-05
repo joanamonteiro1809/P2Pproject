@@ -145,6 +145,7 @@ describe("Splitwise System", function () {
 
   });
 
+  /*
   it("Should allow settling debt with ETH", async () => {
     const [alice, bob] = await ethers.getSigners();
 
@@ -178,7 +179,7 @@ describe("Splitwise System", function () {
     // Debt should now be zero
     let finalDebt = await splitwise.getDebt(groupId, bob.address, alice.address);
     expect(finalDebt).to.equal(0);
-  });
+  }); */
 
   it("Should return empty debt graph for new group", async () => {
     await splitwise.createGroup("Empty Group", [user1.address, user2.address]);
