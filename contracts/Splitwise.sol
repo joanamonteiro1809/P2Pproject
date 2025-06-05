@@ -3,8 +3,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-//import "./SplitwiseToken.sol";
-
 contract Splitwise{
     struct Expense {
         string description;
@@ -21,7 +19,7 @@ contract Splitwise{
         address[] members;
         mapping(address => bool) isMember;
         Expense[] expenses;
-        mapping(address => mapping(address => int256)) debts; // debts[from][to] = amount
+        mapping(address => mapping(address => int256)) debts; 
         bool exists;
     }
 
@@ -36,7 +34,7 @@ contract Splitwise{
     event DebtSettled(uint256 groupId, address from, address to, uint256 amount);
 
     constructor(address tokenAddress) {
-        token = IERC20(tokenAddress); // ERC-20 token address passed on deployment
+        token = IERC20(tokenAddress); 
     }
 
     modifier onlyMember(uint256 groupId) {
@@ -54,11 +52,9 @@ contract Splitwise{
         Group storage group = groups[groupId];
         group.name = name;
 
-        // Add creator
         group.members.push(msg.sender);
         group.isMember[msg.sender] = true;
 
-        // Add initial members (no duplicates)
         for (uint i = 0; i < initialMembers.length; i++) {
             address member = initialMembers[i];
             if (!group.isMember[member]) {
@@ -226,11 +222,9 @@ contract Splitwise{
         require(currentDebt >= 0, "No outstanding debt");
         require(uint256(currentDebt) >= amount, "Not enough debt to settle");
 
-        // Transfer ERC-20 tokens
         bool success = token.transferFrom(msg.sender, creditor, amount);
         require(success, "Token transfer failed");
 
-        // Update debt mapping
         group.debts[msg.sender][creditor] -= int256(amount);
 
         emit DebtSettled(groupId, msg.sender, creditor, amount);

@@ -17,7 +17,6 @@ async function main() {
   console.log("Transaction status:", receipt.status);
   console.log("Raw logs:", receipt.logs);
 
-  // Use contract interface to parse logs manually
   let groupCreatedEvent = null;
   for (const log of receipt.logs) {
     try {
